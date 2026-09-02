@@ -1,0 +1,17 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="[RUN]" type="Application" factoryName="Application">
+    <option name="ALTERNATIVE_JRE_PATH" value="25" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <envs>
+      <env name="ADMIN_USER_ID" value="1738750423" />
+      <env name="BOT_TOKEN" value="8925650199:AAFIRwAA_ohJe0jvso-d9BJbg5q2ujW5pO8" />
+      <env name="TARGET_CHAT_ID" value="-1003457993247" />
+      <env name="SHRINK_API_TOKEN" value="ecaf526a8870f3c1a80d9cd14b53a13c76c5b211" />
+    </envs>
+    <option name="MAIN_CLASS_NAME" value="com.postroms.Main" />
+    <module name="post-roms-bot.main" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
