@@ -1,1 +1,1 @@
-rootProject.name = "post-roms-bot"
+rootProject.name = "utilities-pack"
