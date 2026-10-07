@@ -60,21 +60,11 @@ tasks.build {
     dependsOn(tasks.shadowJar)
 }
 
-// Publish under the exact coordinates JitPack serves, so that consumers declaring
-//   implementation("com.github.eliezer-dev-software-enginner:pack-utilities:v1.0.0")
-// resolve the MODULAR jar from mavenLocal without any change to their build scripts.
-// JitPack builds from git tags, so this only takes effect locally until the fix is pushed.
-//
-// Publishes components["java"] (the plain jar) rather than shadowJar on purpose: shadow
-// strips the root module-info.class, which would downgrade the artifact from the explicit
-// `module pack.utilities` back to an automatic module. This library has zero runtime
-// dependencies, so the plain jar and the shadow jar are content-equivalent.
+// Publish the modular plain JAR for consumers using Maven local.
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
-            groupId = "com.github.eliezer-dev-software-enginner"
             artifactId = "pack-utilities"
-            version = "v1.0.0"
             from(components["java"])
             pom {
                 name.set("pack-utilities")
