@@ -15,8 +15,12 @@
  * The manifest {@code Automatic-Module-Name} fallback is kept in build.gradle.kts as a
  * belt-and-braces measure for consumers still resolving an older published jar.
  *
- * Real dependencies: only {@code java.base}. No Lombok, no JavaFX, no third-party code.
+ * PDF generation uses Jackson for data/templates and Apache PDFBox for rendering.
  */
 module pack.utilities {
+    requires com.fasterxml.jackson.databind;
+    requires org.apache.pdfbox;
+
     exports pack.utilities;
+    exports pack.utilities.pdf;
 }
