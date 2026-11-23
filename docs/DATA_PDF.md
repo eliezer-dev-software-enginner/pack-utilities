@@ -283,6 +283,12 @@ image when both source dimensions are below the configured maxima. HTTP URLs,
 data URLs, and `file:` URIs are not fetched or decoded; pass a filesystem path.
 If neither the path nor fallback yields bytes, the element renders nothing.
 
+`maxWidth` and `maxHeight` apply to the complete image canvas. White or
+transparent margins embedded in the source file therefore consume layout space
+and make the visible artwork appear smaller or farther from the page edge. Trim
+those margins in a dedicated document asset when precise sizing and alignment
+matter; keep the original brand asset unchanged when it is used elsewhere.
+
 ### `LINE`
 
 Draws a horizontal rule across the writable page width.
@@ -503,7 +509,7 @@ neither a valid file nor fallback.
 The current JSONC API does not provide:
 
 - page footers or page-number expressions;
-- arbitrary text, fill, border, or table-header colors;
+- free-form vector drawing or per-cell table styles;
 - per-side margins or padding;
 - hyperlinks or clickable buttons;
 - remote image downloading or data-URL decoding;
