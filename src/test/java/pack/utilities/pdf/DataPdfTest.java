@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DataPdfTest {
@@ -35,8 +36,8 @@ class DataPdfTest {
                       {"type": "TEXT", "value": "${name}", "fontSize": 10},
                       {"type": "TABLE", "rowsPath": "rows", "rowHeight": 20,
                        "columns": [
-                         {"header": "Item", "value": "${item}", "weight": 3},
-                         {"header": "Valor", "value": "${value}", "weight": 1}
+                         {"header": "${itemHeader}", "value": "${item}", "weight": 3},
+                         {"header": "${valueHeader}", "value": "${value}", "weight": 1}
                        ]}
                     ]},
                     {"type": "IF", "path": "showFooter", "body": [
@@ -50,7 +51,8 @@ class DataPdfTest {
                 .toList();
         Map<String, Object> data = Map.of(
                 "title", "Pedido orientado a dados",
-                "groups", List.of(Map.of("name", "Grupo principal", "rows", rows)),
+                "groups", List.of(Map.of("name", "Grupo principal", "itemHeader", "Item", "rows", rows)),
+                "valueHeader", "Valor",
                 "showFooter", true,
                 "footer", "Total calculado"
         );
@@ -62,6 +64,10 @@ class DataPdfTest {
             String text = new PDFTextStripper().getText(document);
             assertTrue(document.getNumberOfPages() > 1);
             assertEquals(document.getNumberOfPages(), text.split("Pedido orientado a dados", -1).length - 1);
+            assertTrue(text.contains("Item"));
+            assertTrue(text.contains("Valor"));
+            assertFalse(text.contains("${itemHeader}"));
+            assertFalse(text.contains("${valueHeader}"));
             assertTrue(text.contains("Produto 70"));
             assertTrue(text.contains("Total calculado"));
         }

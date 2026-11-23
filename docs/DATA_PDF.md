@@ -320,7 +320,7 @@ Column properties:
 
 | Property | Type | Default | Behavior |
 | --- | --- | --- | --- |
-| `header` | string | `""` | Literal header text. Headers are not expression-interpolated in the current version. |
+| `header` | string | `""` | Header text with expressions resolved against the table context, then root data. |
 | `value` | string | `""` | Cell text with expressions resolved against the row, then root data. |
 | `weight` | number | `1` | Relative share of the writable table width. |
 
@@ -449,7 +449,6 @@ The current JSONC API does not provide:
 - explicit page-break elements;
 - row/column spanning;
 - wrapped or variable-height table cells;
-- interpolated table header labels;
 - preservation of explicit line breaks in `TEXT`; or
 - a schema file that editors can use for completion.
 

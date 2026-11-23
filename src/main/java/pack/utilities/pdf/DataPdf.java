@@ -213,11 +213,11 @@ public final class DataPdf {
             float padding = (float) element.path("cellPadding").asDouble(4);
             float[] widths = columnWidths(columns);
             ensure(rowHeight * 2);
-            drawTableRow(columns, null, widths, rowHeight, headerFontSize, padding, true);
+            drawTableRow(columns, context, widths, rowHeight, headerFontSize, padding, true);
             for (JsonNode row : rows) {
                 if (y - rowHeight < margin) {
                     newPage();
-                    drawTableRow(columns, null, widths, rowHeight, headerFontSize, padding, true);
+                    drawTableRow(columns, context, widths, rowHeight, headerFontSize, padding, true);
                 }
                 drawTableRow(columns, row, widths, rowHeight, fontSize, padding, false);
             }
@@ -238,8 +238,9 @@ public final class DataPdf {
                 JsonNode column = columns.get(index);
                 stream.addRect(x, bottom, widths[index], height);
                 stream.stroke();
-                String value = header ? column.path("header").asText("")
-                        : interpolate(column.path("value").asText(""), row);
+                String templateValue = header ? column.path("header").asText("")
+                        : column.path("value").asText("");
+                String value = interpolate(templateValue, row);
                 PDFont font = header ? bold : regular;
                 value = fit(value, font, fontSize, widths[index] - padding * 2);
                 stream.beginText();

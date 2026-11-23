@@ -66,7 +66,7 @@ try (var template = MyDocument.class.getResourceAsStream("/pdf/order.jsonc")) {
 }
 ```
 
-Templates use `${field}` expressions in `TEXT`, `IMAGE`, and `TABLE` cells. `REPEAT`
+Templates use `${field}` expressions in `TEXT`, `IMAGE`, and `TABLE` headers/cells. `REPEAT`
 iterates over lists, `IF` controls optional blocks, and `pageHeader` is rendered again on
 every page. The library ships DejaVu Sans regular and bold at:
 
