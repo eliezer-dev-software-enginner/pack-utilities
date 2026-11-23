@@ -73,6 +73,10 @@ every page. The library ships DejaVu Sans regular and bold at:
 - `/pack/utilities/pdf/fonts/DejaVuSans.ttf`
 - `/pack/utilities/pdf/fonts/DejaVuSans-Bold.ttf`
 
+See the **[complete DataPdf JSONC template reference](docs/DATA_PDF.md)** for the
+root schema, every element and property, path resolution, conditions, pagination,
+resource loading, errors, limitations, and a full template.
+
 See [`DataPdfTest`](src/test/java/pack/utilities/pdf/DataPdfTest.java) for an executable
 template containing repetition, conditional content, pagination, and a table.
 
