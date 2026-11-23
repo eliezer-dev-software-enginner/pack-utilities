@@ -11,8 +11,9 @@ The repository includes the Gradle Wrapper, so a separate Gradle installation is
 - `DatePack`: Brazilian date formatting and conversions between dates and Unix milliseconds.
   Overloads without a `ZoneId` use the JVM default time zone.
 - `CurrencyPack`: Brazilian real formatting and conversion of cent strings to `BigDecimal`.
-- `DataPdf`: JSONC-template PDF generation with text, images, rules, conditions, repetition,
-  paginated tables, and repeated page headers.
+- `DataPdf`: JSONC-template PDF generation with text, images, branded bands,
+  columns, rules, conditions, repetition, styled paginated tables, and repeated
+  page headers.
 
 ## Local build and usage
 

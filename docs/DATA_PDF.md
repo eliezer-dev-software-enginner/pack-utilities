@@ -199,8 +199,8 @@ other Jackson-compatible objects can be supplied.
 ## Element reference
 
 Every element requires `type`. Type names are case-insensitive. Supported types
-are `TEXT`, `IMAGE`, `LINE`, `SPACER`, `TABLE`, `REPEAT`, and `IF`. An unknown or
-missing type throws `IllegalArgumentException`.
+are `TEXT`, `BAND`, `IMAGE`, `LINE`, `SPACER`, `TABLE`, `COLUMNS`, `REPEAT`, and
+`IF`. An unknown or missing type throws `IllegalArgumentException`.
 
 ### `TEXT`
 
@@ -223,10 +223,34 @@ Renders interpolated text and wraps it to the writable page width.
 | `fontSize` | number | `10` | Font size in points. |
 | `bold` | boolean | `false` | Uses the configured bold font. |
 | `align` | string | `LEFT` | `LEFT`, `CENTER`, or `RIGHT`, case-insensitive. Unknown values use left alignment. |
+| `color` | string | `#000000` | Text color as `#RRGGBB`. Invalid values fall back to black. |
 | `spacingAfter` | number | `7` | Vertical space in points after the final rendered line. |
 
 Carriage returns and line feeds are converted to spaces. Remaining whitespace is
 normalized while wrapping. Explicit multiline text is not preserved.
+
+### `BAND`
+
+Renders a full-width colored band with one fitted text label. It is useful for
+section headers and status blocks without placing coordinates in application code.
+
+```jsonc
+{
+  "type": "BAND",
+  "value": "ORDER ITEMS",
+  "height": 24,
+  "backgroundColor": "#1F4E89",
+  "color": "#FFFFFF",
+  "fontSize": 10,
+  "bold": true,
+  "align": "LEFT",
+  "padding": 7,
+  "spacingAfter": 8
+}
+```
+
+Text that exceeds the band width is truncated with an ellipsis. `color` and
+`backgroundColor` accept `#RRGGBB` values.
 
 ### `IMAGE`
 
@@ -270,6 +294,7 @@ Draws a horizontal rule across the writable page width.
 | Property | Type | Default | Behavior |
 | --- | --- | --- | --- |
 | `width` | number | `0.5` | Stroke width in points. |
+| `color` | string | `#000000` | Stroke color as `#RRGGBB`. |
 | `spacingAfter` | number | `8` | Vertical space after the rule. |
 
 ### `SPACER`
@@ -315,6 +340,13 @@ Table properties:
 | `headerFontSize` | number | `fontSize` | Header font size. |
 | `cellPadding` | number | `4` | Horizontal cell padding. |
 | `spacingAfter` | number | `0` | Vertical space after the table. |
+| `headerBackgroundColor` | string | `#EEEEEE` | Header fill as `#RRGGBB`. |
+| `headerTextColor` | string | `#000000` | Header text color as `#RRGGBB`. |
+| `textColor` | string | `#000000` | Body text color as `#RRGGBB`. |
+| `alternateRowColor` | string | none | Optional fill for odd body rows. |
+| `borderColor` | string | `#000000` | Cell border color as `#RRGGBB`. |
+| `borderWidth` | number | `0.5` | Cell border width in points. |
+| `showBorders` | boolean | `true` | Whether cell borders are drawn. |
 
 Column properties:
 
@@ -323,17 +355,46 @@ Column properties:
 | `header` | string | `""` | Header text with expressions resolved against the table context, then root data. |
 | `value` | string | `""` | Cell text with expressions resolved against the row, then root data. |
 | `weight` | number | `1` | Relative share of the writable table width. |
+| `align` | string | `LEFT` | Cell alignment: `LEFT`, `CENTER`, or `RIGHT`. |
 
 Column widths are proportional. For weights `3` and `1`, the first column uses
 75% and the second uses 25% of the writable width.
 
-Headers use the bold font and a fixed light-gray background. Table borders and
-text colors are currently fixed by the renderer. Each row has a fixed height;
-cell text does not wrap and is truncated with `…` when it exceeds the available
-width. Newlines in cell values are converted to spaces.
+Headers use the bold font. Each row has a fixed height; cell text does not wrap
+and is truncated with `…` when it exceeds the available width. Newlines in cell
+values are converted to spaces.
 
 When the next row would cross the bottom margin, `DataPdf` starts a new page,
 renders `pageHeader`, and repeats the table header before continuing the rows.
+
+### `COLUMNS`
+
+Renders independent vertical bodies side by side, then continues below the
+lowest column. This is intended for compact headers, customer summaries and
+commercial-condition blocks.
+
+```jsonc
+{
+  "type": "COLUMNS",
+  "gap": 16,
+  "minHeight": 48,
+  "spacingAfter": 10,
+  "columns": [
+    { "weight": 2, "body": [
+      { "type": "TEXT", "value": "${customer.name}", "bold": true }
+    ]},
+    { "weight": 1, "body": [
+      { "type": "TEXT", "value": "${date}", "align": "RIGHT" }
+    ]}
+  ]
+}
+```
+
+`weight` controls the relative width and `gap` is measured in points.
+`minHeight` reserves enough vertical space before the block starts. A `COLUMNS`
+block cannot cross a page boundary; keep its content compact and choose a
+`minHeight` that covers the tallest column. Nested tables that require pagination
+should remain outside columns.
 
 ### `REPEAT`
 

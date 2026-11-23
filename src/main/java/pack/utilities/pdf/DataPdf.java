@@ -89,7 +89,10 @@ public final class DataPdf {
         private PDPage page;
         private PDPageContentStream stream;
         private float y;
+        private float contentX;
+        private float contentWidth;
         private boolean drawingPageHeader;
+        private boolean drawingColumns;
 
         private Renderer(PDDocument document, JsonNode template, JsonNode root, PDFont regular, PDFont bold) {
             this.document = document;
@@ -99,6 +102,8 @@ public final class DataPdf {
             this.bold = bold;
             this.pageSize = pageSize(template.path("page"));
             this.margin = (float) template.path("page").path("margin").asDouble(42);
+            this.contentX = margin;
+            this.contentWidth = pageSize.getWidth() - margin * 2;
         }
 
         private void render() throws IOException {
@@ -116,10 +121,12 @@ public final class DataPdf {
                 String type = element.path("type").asText("").toUpperCase(Locale.ROOT);
                 switch (type) {
                     case "TEXT" -> drawText(element, context);
+                    case "BAND" -> drawBand(element, context);
                     case "IMAGE" -> drawImage(element, context);
                     case "LINE" -> drawLine(element);
                     case "SPACER" -> space((float) element.path("height").asDouble(12));
                     case "TABLE" -> drawTable(element, context);
+                    case "COLUMNS" -> drawColumns(element, context);
                     case "REPEAT" -> repeat(element, context);
                     case "IF" -> conditional(element, context);
                     default -> throw new IllegalArgumentException("Elemento PDF desconhecido: " + type);
@@ -152,18 +159,87 @@ public final class DataPdf {
             for (String line : lines) {
                 float width = width(line, font, size);
                 float x = switch (element.path("align").asText("LEFT").toUpperCase(Locale.ROOT)) {
-                    case "CENTER" -> margin + Math.max(0, (writableWidth() - width) / 2);
-                    case "RIGHT" -> margin + Math.max(0, writableWidth() - width);
-                    default -> margin;
+                    case "CENTER" -> contentX + Math.max(0, (writableWidth() - width) / 2);
+                    case "RIGHT" -> contentX + Math.max(0, writableWidth() - width);
+                    default -> contentX;
                 };
+                setNonStrokingColor(element, "color", 0, 0, 0);
                 stream.beginText();
                 stream.setFont(font, size);
                 stream.newLineAtOffset(x, y);
                 stream.showText(line);
                 stream.endText();
+                stream.setNonStrokingColor(0, 0, 0);
                 y -= size + 3;
             }
             y -= spacing;
+        }
+
+        private void drawBand(JsonNode element, JsonNode context) throws IOException {
+            float height = (float) element.path("height").asDouble(24);
+            float spacing = (float) element.path("spacingAfter").asDouble(7);
+            float padding = (float) element.path("padding").asDouble(7);
+            float size = (float) element.path("fontSize").asDouble(10);
+            ensure(height + spacing);
+            setNonStrokingColor(element, "backgroundColor", 31, 78, 137);
+            stream.addRect(contentX, y - height, writableWidth(), height);
+            stream.fill();
+            String value = interpolate(element.path("value").asText(""), context)
+                    .replaceAll("[\\r\\n]+", " ");
+            PDFont font = element.path("bold").asBoolean(true) ? bold : regular;
+            value = fit(value, font, size, Math.max(1, writableWidth() - padding * 2));
+            float textWidth = width(value, font, size);
+            float x = switch (element.path("align").asText("LEFT").toUpperCase(Locale.ROOT)) {
+                case "CENTER" -> contentX + (writableWidth() - textWidth) / 2;
+                case "RIGHT" -> contentX + writableWidth() - padding - textWidth;
+                default -> contentX + padding;
+            };
+            setNonStrokingColor(element, "color", 255, 255, 255);
+            stream.beginText();
+            stream.setFont(font, size);
+            stream.newLineAtOffset(x, y - (height + size) / 2 + 2);
+            stream.showText(value);
+            stream.endText();
+            stream.setNonStrokingColor(0, 0, 0);
+            y -= height + spacing;
+        }
+
+        private void drawColumns(JsonNode element, JsonNode context) throws IOException {
+            JsonNode columns = element.path("columns");
+            if (!columns.isArray() || columns.isEmpty()) return;
+            float gap = (float) element.path("gap").asDouble(12);
+            float spacing = (float) element.path("spacingAfter").asDouble(0);
+            float minHeight = (float) element.path("minHeight").asDouble(0);
+            ensure(minHeight + spacing);
+            float totalWeight = 0;
+            for (JsonNode column : columns) totalWeight += column.path("weight").asDouble(1);
+            float available = writableWidth() - gap * (columns.size() - 1);
+            float originalX = contentX;
+            float originalWidth = contentWidth;
+            float startY = y;
+            float lowestY = startY;
+            PDPage originalPage = page;
+            boolean previousColumns = drawingColumns;
+            drawingColumns = true;
+            try {
+                float x = originalX;
+                for (JsonNode column : columns) {
+                    float width = available * (float) (column.path("weight").asDouble(1) / totalWeight);
+                    contentX = x;
+                    contentWidth = width;
+                    y = startY;
+                    renderElements(column.path("body"), context);
+                    if (page != originalPage)
+                        throw new IllegalStateException("COLUMNS não pode atravessar páginas; aumente minHeight ou reduza o conteúdo");
+                    lowestY = Math.min(lowestY, y);
+                    x += width + gap;
+                }
+            } finally {
+                contentX = originalX;
+                contentWidth = originalWidth;
+                drawingColumns = previousColumns;
+            }
+            y = lowestY - spacing;
         }
 
         private void drawImage(JsonNode element, JsonNode context) throws IOException {
@@ -186,9 +262,9 @@ public final class DataPdf {
             float height = image.getHeight() * scale;
             ensure(height + element.path("spacingAfter").asDouble(8));
             float x = switch (element.path("align").asText("LEFT").toUpperCase(Locale.ROOT)) {
-                case "CENTER" -> margin + (writableWidth() - width) / 2;
-                case "RIGHT" -> page.getMediaBox().getWidth() - margin - width;
-                default -> margin;
+                case "CENTER" -> contentX + (writableWidth() - width) / 2;
+                case "RIGHT" -> contentX + writableWidth() - width;
+                default -> contentX;
             };
             stream.drawImage(image, x, y - height, width, height);
             y -= height + (float) element.path("spacingAfter").asDouble(8);
@@ -197,9 +273,11 @@ public final class DataPdf {
         private void drawLine(JsonNode element) throws IOException {
             ensure(8);
             stream.setLineWidth((float) element.path("width").asDouble(.5));
-            stream.moveTo(margin, y);
-            stream.lineTo(page.getMediaBox().getWidth() - margin, y);
+            setStrokingColor(element, "color", 0, 0, 0);
+            stream.moveTo(contentX, y);
+            stream.lineTo(contentX + writableWidth(), y);
             stream.stroke();
+            stream.setStrokingColor(0, 0, 0);
             y -= (float) element.path("spacingAfter").asDouble(8);
         }
 
@@ -213,43 +291,61 @@ public final class DataPdf {
             float padding = (float) element.path("cellPadding").asDouble(4);
             float[] widths = columnWidths(columns);
             ensure(rowHeight * 2);
-            drawTableRow(columns, context, widths, rowHeight, headerFontSize, padding, true);
+            drawTableRow(element, columns, context, widths, rowHeight, headerFontSize, padding, true, false);
+            int rowIndex = 0;
             for (JsonNode row : rows) {
                 if (y - rowHeight < margin) {
                     newPage();
-                    drawTableRow(columns, context, widths, rowHeight, headerFontSize, padding, true);
+                    drawTableRow(element, columns, context, widths, rowHeight, headerFontSize, padding, true, false);
                 }
-                drawTableRow(columns, row, widths, rowHeight, fontSize, padding, false);
+                drawTableRow(element, columns, row, widths, rowHeight, fontSize, padding, false, rowIndex++ % 2 == 1);
             }
             y -= (float) element.path("spacingAfter").asDouble(0);
         }
 
-        private void drawTableRow(JsonNode columns, JsonNode row, float[] widths, float height,
-                                  float fontSize, float padding, boolean header) throws IOException {
-            float x = margin;
+        private void drawTableRow(JsonNode table, JsonNode columns, JsonNode row, float[] widths, float height,
+                                  float fontSize, float padding, boolean header, boolean alternate) throws IOException {
+            float x = contentX;
             float bottom = y - height;
             if (header) {
-                stream.setNonStrokingColor(238, 238, 238);
+                setNonStrokingColor(table, "headerBackgroundColor", 238, 238, 238);
                 stream.addRect(x, bottom, writableWidth(), height);
                 stream.fill();
-                stream.setNonStrokingColor(0, 0, 0);
+            } else if (alternate && table.has("alternateRowColor")) {
+                setNonStrokingColor(table, "alternateRowColor", 255, 255, 255);
+                stream.addRect(x, bottom, writableWidth(), height);
+                stream.fill();
             }
             for (int index = 0; index < columns.size(); index++) {
                 JsonNode column = columns.get(index);
-                stream.addRect(x, bottom, widths[index], height);
-                stream.stroke();
+                if (table.path("showBorders").asBoolean(true)) {
+                    setStrokingColor(table, "borderColor", 0, 0, 0);
+                    stream.setLineWidth((float) table.path("borderWidth").asDouble(.5));
+                    stream.addRect(x, bottom, widths[index], height);
+                    stream.stroke();
+                }
                 String templateValue = header ? column.path("header").asText("")
                         : column.path("value").asText("");
                 String value = interpolate(templateValue, row);
                 PDFont font = header ? bold : regular;
                 value = fit(value, font, fontSize, widths[index] - padding * 2);
+                float textWidth = width(value, font, fontSize);
+                String align = column.path("align").asText("LEFT").toUpperCase(Locale.ROOT);
+                float textX = switch (align) {
+                    case "CENTER" -> x + (widths[index] - textWidth) / 2;
+                    case "RIGHT" -> x + widths[index] - padding - textWidth;
+                    default -> x + padding;
+                };
+                setNonStrokingColor(table, header ? "headerTextColor" : "textColor", 0, 0, 0);
                 stream.beginText();
                 stream.setFont(font, fontSize);
-                stream.newLineAtOffset(x + padding, bottom + (height - fontSize) / 2);
+                stream.newLineAtOffset(textX, bottom + (height - fontSize) / 2);
                 stream.showText(value);
                 stream.endText();
                 x += widths[index];
             }
+            stream.setNonStrokingColor(0, 0, 0);
+            stream.setStrokingColor(0, 0, 0);
             y = bottom;
         }
 
@@ -269,6 +365,8 @@ public final class DataPdf {
         }
 
         private void ensure(double height) throws IOException {
+            if (drawingColumns && y - height < margin)
+                throw new IllegalStateException("Conteúdo de COLUMNS excede a página");
             if (!drawingPageHeader && y - height < margin) newPage();
         }
 
@@ -277,6 +375,8 @@ public final class DataPdf {
             page = new PDPage(pageSize);
             document.addPage(page);
             stream = new PDPageContentStream(document, page);
+            contentX = margin;
+            contentWidth = page.getMediaBox().getWidth() - margin * 2;
             y = page.getMediaBox().getHeight() - margin;
             JsonNode header = template.path("pageHeader");
             if (header.isArray()) {
@@ -344,7 +444,29 @@ public final class DataPdf {
         }
 
         private float writableWidth() {
-            return page.getMediaBox().getWidth() - margin * 2;
+            return contentWidth;
+        }
+
+        private void setNonStrokingColor(JsonNode element, String field, int red, int green, int blue)
+                throws IOException {
+            int[] color = color(element.path(field).asText(""), red, green, blue);
+            stream.setNonStrokingColor(color[0], color[1], color[2]);
+        }
+
+        private void setStrokingColor(JsonNode element, String field, int red, int green, int blue)
+                throws IOException {
+            int[] color = color(element.path(field).asText(""), red, green, blue);
+            stream.setStrokingColor(color[0], color[1], color[2]);
+        }
+
+        private static int[] color(String value, int red, int green, int blue) {
+            String hex = Objects.toString(value, "").trim();
+            if (hex.startsWith("#")) hex = hex.substring(1);
+            if (hex.matches("(?i)[0-9a-f]{6}")) return new int[]{
+                    Integer.parseInt(hex.substring(0, 2), 16),
+                    Integer.parseInt(hex.substring(2, 4), 16),
+                    Integer.parseInt(hex.substring(4, 6), 16)};
+            return new int[]{red, green, blue};
         }
 
         private void closeStream() throws IOException {
