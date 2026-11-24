@@ -244,13 +244,16 @@ section headers and status blocks without placing coordinates in application cod
   "fontSize": 10,
   "bold": true,
   "align": "LEFT",
+  "fitMode": "ELLIPSIS",
   "padding": 7,
   "spacingAfter": 8
 }
 ```
 
-Text that exceeds the band width is truncated with an ellipsis. `color` and
-`backgroundColor` accept `#RRGGBB` values.
+Text that exceeds the band width is truncated with an ellipsis by default. Set
+`fitMode` to `SHRINK` when the complete value is mandatory, such as a financial
+total; the renderer reduces the font size just enough to preserve the entire
+text. `color` and `backgroundColor` accept `#RRGGBB` values.
 
 ### `IMAGE`
 

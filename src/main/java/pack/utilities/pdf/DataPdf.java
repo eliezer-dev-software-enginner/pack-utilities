@@ -187,7 +187,12 @@ public final class DataPdf {
             String value = interpolate(element.path("value").asText(""), context)
                     .replaceAll("[\\r\\n]+", " ");
             PDFont font = element.path("bold").asBoolean(true) ? bold : regular;
-            value = fit(value, font, size, Math.max(1, writableWidth() - padding * 2));
+            float availableWidth = Math.max(1, writableWidth() - padding * 2);
+            if ("SHRINK".equalsIgnoreCase(element.path("fitMode").asText())) {
+                size = shrinkToFit(value, font, size, availableWidth);
+            } else {
+                value = fit(value, font, size, availableWidth);
+            }
             float textWidth = width(value, font, size);
             float x = switch (element.path("align").asText("LEFT").toUpperCase(Locale.ROOT)) {
                 case "CENTER" -> contentX + (writableWidth() - textWidth) / 2;
@@ -437,6 +442,12 @@ public final class DataPdf {
                 clean = clean.substring(0, clean.length() - 1);
             }
             return clean + suffix;
+        }
+
+        private float shrinkToFit(String value, PDFont font, float size, float available) throws IOException {
+            float currentWidth = width(Objects.toString(value, ""), font, size);
+            if (currentWidth <= available || currentWidth == 0) return size;
+            return Math.max(0.1f, size * available / currentWidth);
         }
 
         private float width(String value, PDFont font, float size) throws IOException {

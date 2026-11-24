@@ -129,4 +129,31 @@ class DataPdfTest {
             assertTrue(bluePixels > 1_000, "As faixas e o cabeçalho devem preservar a identidade azul");
         }
     }
+
+    @Test
+    void shrinkBandPreservesCompleteValueInsteadOfEllipsis() throws Exception {
+        String template = """
+                {
+                  "page": {"size": "A4", "orientation": "PORTRAIT", "margin": 220},
+                  "fonts": {
+                    "regular": "/pack/utilities/pdf/fonts/DejaVuSans.ttf",
+                    "bold": "/pack/utilities/pdf/fonts/DejaVuSans-Bold.ttf"
+                  },
+                  "body": [
+                    {"type": "BAND", "value": "TOTAL DO PEDIDO   ${total}",
+                     "fontSize": 12, "fitMode": "SHRINK"}
+                  ]
+                }
+                """;
+        Path output = directory.resolve("complete-total.pdf");
+
+        DataPdf.write(output, new ByteArrayInputStream(template.getBytes(StandardCharsets.UTF_8)),
+                Map.of("total", "R$ 173.252,31"));
+
+        try (PDDocument document = PDDocument.load(output.toFile())) {
+            String text = new PDFTextStripper().getText(document);
+            assertTrue(text.contains("TOTAL DO PEDIDO   R$ 173.252,31"));
+            assertFalse(text.contains("…"));
+        }
+    }
 }
